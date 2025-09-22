@@ -41,6 +41,7 @@ Host System:
 
 Container 내부에서는:
 └── PID 1: my-application  *# 실제로는 Host의 PID 1235*
+
 ```
 
 **격리 영역**
@@ -58,13 +59,37 @@ Container 내부에서는:
 *# CPU 사용량 제한*
 docker run --cpus="1.5" my-app
 
-*# 메모리 사용량 제한*  
+*# 메모리 사용량 제한*
 docker run --memory="512m" my-app
+
 ```
 
 **제어 가능한 리소스**
 
 - CPU 사용률, 메모리 사용량, 네트워크 대역폭, 디스크 I/O
+
+---
+
+### Docker 스왑 메모리 관리
+
+스왑 메모리란? 물리 메모리(RAM)가 부족할 때 디스크를 임시 메모리로 사용하는 기술입니다.
+
+```java
+메모리 설정: 512MB, 실제 사용: 700MB일 때
+• 스왑 허용 → 초과분 200MB를 디스크에 저장 (느려짐)
+• 스왑 비허용 → OOM 오류로 컨테이너 종료
+```
+
+## 주요 설정 옵션
+
+```java
+*# 스왑 제한 설정 (메모리의 2배)*
+docker run --memory="512m" --memory-swap="1g" my-app
+```
+
+## 환경별 권장사항
+
+**운영 환경에는 스왑을 사용할 시에 과도한 트래픽이 들어올 경우 급격하게 느려지는 단점이 있으므로 추천하지 않고 개발환경에서는 제한적으로 스왑을 허용하면 좋습니다.**
 
 ---
 
@@ -79,6 +104,7 @@ docker run -d --name web-app my-web-app
 docker run -d --name mysql-db mysql:8.0
 
 *# 문제: web-app이 mysql-db에 어떻게 연결? # localhost:3306? → 컨테이너 내부에서는 접근 불가*
+
 ```
 
 ## Bridge Network 동작 원리
@@ -89,8 +115,9 @@ docker run -d --name mysql-db mysql:8.0
 *# Docker가 자동 생성하는 가상 브리지*
 docker0: 172.17.0.1
 
-Container 1: 172.17.0.2 ←→ docker0 ←→ Host Network  
+Container 1: 172.17.0.2 ←→ docker0 ←→ Host Network
 Container 2: 172.17.0.3 ←→ docker0 ←→ Host Network
+
 ```
 
 **실제 예시**
@@ -101,12 +128,13 @@ docker network create my-app-network
 
 *# 2. 같은 네트워크에 컨테이너 실행*
 docker run -d --name mysql-db --network my-app-network mysql:8.0
-docker run -d --name web-app --network my-app-network \
-  -e DB_HOST=mysql-db my-web-app  
-  
+docker run -d --name web-app --network my-app-network \\
+  -e DB_HOST=mysql-db my-web-app
+
 *# 컨테이너명으로 접근!
 # 3. 통신 확인*
 docker exec web-app ping mysql-db  *# 성공!*
+
 ```
 
 ## 보안 계층 구조
@@ -125,15 +153,16 @@ services:
   web:
     ports:
       - "80:80"
-  
-  # localhost만 접근  
+
+  # localhost만 접근
   admin:
     ports:
       - "127.0.0.1:3000:3000"
-  
+
   # 완전 내부 통신만
   database:
     # ports 설정 없음
+
 ```
 
 ---
@@ -142,7 +171,7 @@ services:
 
 ### 데이터 지속성 문제
 
-> **문제 상황의 비유:** 이사할 때마다 모든 짐이 사라지는 원룸
+> 문제 상황의 비유: 이사할 때마다 모든 짐이 사라지는 원룸
 > 
 
 ```java
@@ -150,6 +179,7 @@ docker run -d --name mysql-db mysql:8.0
 *# 데이터 입력...*
 docker rm -f mysql-db
 *# 결과: 모든 데이터 손실! 😱*
+
 ```
 
 **컨테이너 파일시스템의 특징**
@@ -167,13 +197,14 @@ docker rm -f mysql-db
 *# 볼륨 생성*
 docker volume create mysql-data
 
-*# 볼륨 사용*  
-docker run -d --name mysql-db \
+*# 볼륨 사용*
+docker run -d --name mysql-db \\
   -v mysql-data:/var/lib/mysql mysql:8.0
 
 *# 컨테이너 삭제해도 데이터 유지*
 docker rm -f mysql-db
 docker volume ls  *# mysql-data 볼륨 존재*
+
 ```
 
 **장점**: Docker 자동 관리, 백업/복원 용이, 여러 컨테이너 간 공유
@@ -184,10 +215,11 @@ docker volume ls  *# mysql-data 볼륨 존재*
 
 ```java
 *# 실시간 코드 반영*
-docker run -d --name dev-app \
+docker run -d --name dev-app \\
   -v /home/user/project:/app node:16
 
 *# Host에서 수정 → Container에 즉시 반영*
+
 ```
 
 **장점**: 실시간 파일 동기화, 개발 시 매우 유용
@@ -198,8 +230,9 @@ docker run -d --name dev-app \
 
 ```java
 *# 빠른 임시 저장소*
-docker run -d --name cache-app \
+docker run -d --name cache-app \\
   --tmpfs /tmp:rw,size=100m redis:alpine
+
 ```
 
 **특징**: 매우 빠름, 재시작 시 소실, 보안 데이터용
@@ -208,7 +241,7 @@ docker run -d --name cache-app \
 
 ## 4. Docker Compose
 
-> **여러 컨테이너를 하나로 묶어서 관리하는 도구**로 만약에 아래와 같이 개별 Docker를 사용하는 복잡한 경우를 Docker Compose를 통해서 한번에 **통합으로 관리**가 가능하다.
+> 여러 컨테이너를 하나로 묶어서 관리하는 도구로 만약에 아래와 같이 개별 Docker를 사용하는 복잡한 경우를 Docker Compose를 통해서 한번에 통합으로 관리가 가능하다.
 > 
 
 ### 주요 기능으로는...
@@ -226,6 +259,7 @@ docker run --name redis...
 
 # Compose: 간단한 한 줄
 docker-compose up -d
+
 ```
 
 ---
@@ -246,6 +280,7 @@ RUN ./gradlew build
 CMD ["java", "-jar", "app.jar"]
 
 # 문제: 소스코드, Gradle, 빌드 도구 모두 포함 → 600MB
+
 ```
 
 **Multi-stage Build 해결책**
@@ -262,6 +297,7 @@ COPY --from=build build/libs/*.jar app.jar
 CMD ["java", "-jar", "app.jar"]
 
 # 결과: JRE만 포함 → 200MB (67% 감소)
+
 ```
 
 위와 같이 **jdk**는 빌드에 필요한 것만 포함하고, **jre**는 실행에 필요한 것만 포함해서 용량이 절반으로 줄어서 빌드 시간을 줄일 수 있습니다.
@@ -276,9 +312,10 @@ CMD ["java", "-jar", "app.jar"]
 
 ```yaml
 Ubuntu 20.04         ← Layer 1 (100MB)
-OpenJDK 17            ← Layer 2 (200MB)  
+OpenJDK 17            ← Layer 2 (200MB)
 Spring Boot JAR     ← Layer 3 (50MB)
 설정 파일                   ← Layer 4 (1MB)
+
 ```
 
 이미지 레이어는 위와 같이 ***읽기 전용***으로 이루어져있지만
@@ -291,6 +328,7 @@ Container B: 임시 파일 생성     ← +3MB
 Container C: 캐시 데이터 생성   ← +8MB
 
 이미지 레이어는 공유, 변경사항만 개별 저장
+
 ```
 
 컨테이너 레이어는 ***읽기와 쓰기 모두 가능***한 점을 이용해서 **COW 방식**을 사용할 수 있습니다.
@@ -312,8 +350,9 @@ Container C: 캐시 데이터 생성   ← +8MB
 ```yaml
 FROM openjdk:17-jdk
 COPY . .                    # 소스 변경 시 아래 모든 레이어 재빌드
-RUN ./gradlew dependencies   
+RUN ./gradlew dependencies
 RUN ./gradlew bootJar
+
 ```
 
 ### 최적화된 순서 (캐싱 활용)
@@ -331,6 +370,7 @@ RUN ./gradlew dependencies
 # 3. 소스 코드는 마지막에 복사
 COPY src/ src/
 RUN ./gradlew bootJar
+
 ```
 
 위와 같이 기존에 배포할 때마다 매번 재빌드하는 방식보다는 그 아래와 같이 최적화된 순서로 캐싱 방식을 활용하면 **최대 90%까지 빌드 시간을 단축**시킬 수 있습니다.
