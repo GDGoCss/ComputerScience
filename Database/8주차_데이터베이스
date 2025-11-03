@@ -1,0 +1,280 @@
+# 정규화
+
+## Functional Dependency (FD)
+
+### X → Y
+
+- X가 Y를 식별한다.
+- X가 같으면 Y도 같다.
+
+ex)
+
+| player_id | player_name | birthday |
+| --- | --- | --- |
+
+player_id가 player_name, birthday를 식별.
+
+X = {player_id}
+
+Y = {player_name, birthday}
+
+---
+
+## 테이블의 상태를 보고 FD를 정의하면 안된다.
+
+스키마의 의미를 보고 결정해야 한다.
+
+### 예시 1 - 동명이인
+
+| player_name | birthday |
+| --- | --- |
+| Kim | 19990101 |
+| Son | 20000101 |
+
+→ 동명이인 들어오게 된다면  FD가 깨짐.
+
+| Kim | 20010101 |
+| --- | --- |
+
+### 예시 2 - 속성 추가 시
+
+| stu_id | stu_name | birthday | major_id |
+| --- | --- | --- | --- |
+
+major_id가 들어온다면, 여전히 FD가 성립될까?
+
+→ 조건에 따라 달라짐.
+
+- 만약 하나의 전공만 가질 수 있다면 O
+- 복수전공이 가능하다면, FD 관계가 깨짐
+
+## X→ Y 일 때, Y → X 성립?
+
+무조건이라고 할 수 없다.
+
+stu_id → stu_name (역 성립 X)
+
+stu_id → 민증번호 (역 성립 O)
+
+# FD 종류
+
+## Trivial FD
+
+> X → Y 일 때, Y가 X의 subset.
+> 
+
+ex)
+
+{a,b,c} → {a}
+
+{a,b,c} → {a,c}
+
+{a,b,c} → {a,b,c}
+
+## Non-Trivial FD
+
+> Trival FD가 아닌 것.
+> 
+
+ex)
+
+{a,b,c} → {a,d} (겹치는거 있지만 부분집합 X
+
+{a,b,c} → {d,f}  ( 겹치는거 전혀 없음 = Completely Non-Trivial FD
+
+## Partial FD
+
+> X → Y  있을 때, X의 proper subset으로도 성립하는 경우.
+> 
+
+- proper subset : X의 부분집합 중 X 자체는 뺀 것들.
+
+ex)
+
+{stu_id, stu_name} → {birthday}
+
+{stu_id} → {birthday} ( 부분집합 만으로도 가능 )
+
+## Full FD
+
+> partial FD 안될 때.
+> 
+
+ex)
+
+{stu_id, subject_id} → {성적}
+
+# 정규화 과정
+
+> 데이터 중복, insertion, update, deletion anomaly 최소화 하기 위해 일련의 NF 과정 따라 relational DB 만드는 과정
+> 
+
+## 개념
+
+1NF → 2NF → 3NF → BCNF → 4NF → 5NF → 6NF
+
+- BCNF까지는 FD와 key 만으로 정의되는 normal form
+- 실무에서 3NF or PCNF 까지만 진행
+
+| 은행 이름 | 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id | 사원이름 | 카드_id |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+
+candidate key : {계좌_id}, {은행 이름, 계좌번호}
+
+PK : 계좌_id
+
+prime attribute : 후보키에 있는 속성들 → 계좌_id, 은행 이름, 계좌번호
+
+non-prime attribute : prime-attribute 제외
+
+## 제1 정규형
+
+> 모든 튜플의 value로 하나의 값만 가져야한다.
+> 
+
+→ 1NF → 
+
+| 카드_id |
+| --- |
+| c201,c202 |
+
+| 카드_id |
+| --- |
+| c201 |
+| c202 |
+
+| 은행 이름 | 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id | 사원이름 | 카드_id |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 우리 | 010-9231-1121 | a11 | BRONZE | 0.1 | e1 | Kim | c101 |
+| 우리 | 102-992-180125 | a12 | SILVER | 0.2 | e1 | Kim | c102 |
+| 국민 | 010-9231-1121 | a13 | LOYAL | 0.7 | e1 | Kim | c103 |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park | c201 |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park | c202 |
+
+제1 정규형으로 인한 문제 발생 : 계좌_id만으로 식별 안됨. (4,5행)
+
+→ candidate Key를 {계좌_id, 카드_id}, {은행이름, 계좌번호, 카드_id} 로 변경
+
+## 제2 정규형
+
+> 모든 non-prime attribute는 모든 (candidate)key에 full FD 이어야한다.
+> 
+
+candidate key : {계좌_id, 카드_id}, {은행이름, 계좌번호, 카드_id}
+
+non-prime attribute :계좌등급, 입금 비율, 사원_id, 사원이름
+
+### 각 key에 대해 FP를 확인
+
+1. {계좌_id, 카드_id} → {계좌등급, 입금 비율, 사원_id, 사원이름}
+    
+    → 카드_id가 없어도 성립됨
+    
+    → partial FD
+    
+
+1. {은행이름, 계좌번호, 카드_id} → {계좌등급, 입금 비율, 사원_id, 사원이름}
+    
+    → 카드_id 없어도 성립됨
+    
+    → partial FD
+    
+
+full FD로 만들기위해, 카드_id를 따로 빼자
+
+| 은행 이름 | 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id | 사원이름 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 우리 | 010-9231-1121 | a11 | BRONZE | 0.1 | e1 | Kim |
+| 우리 | 102-992-180125 | a12 | SILVER | 0.2 | e1 | Kim |
+| 국민 | 010-9231-1121 | a13 | LOYAL | 0.7 | e1 | Kim |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park |
+
+| 계좌_id | 카드_id |
+| --- | --- |
+| a11 | c101 |
+| a12 | c102 |
+| a13 | c103 |
+| a21 | c201 |
+| a21 | c202 |
+
+## 제3 정규형
+
+> 모든 non-prime attribute는 어떤 key에도 transitively dependent 하면 안된다.
+= non-prime attribute와 non-prime attribute 사이에는 FD가 있으면 안된다.
+> 
+
+| 은행 이름 | 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id | 사원이름 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 우리 | 010-9231-1121 | a11 | BRONZE | 0.1 | e1 | Kim |
+| 우리 | 102-992-180125 | a12 | SILVER | 0.2 | e1 | Kim |
+| 국민 | 010-9231-1121 | a13 | LOYAL | 0.7 | e1 | Kim |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 | Park |
+
+### transitive FD
+
+X → Y, Y → Z 일 때 X→Z로 표현되는 것. ( Y, Z가 key의 부분집합 아닐시 )
+
+transitive DF를 찾아보자
+
+1.
+
+사원_id → 사원이름
+
+계좌_id → 사원_id
+
+계좌_id → 사원_id → 사원이름
+
+2.
+
+은행 이름, 계좌번호 → 사원_id
+
+사원_id → 사원이름
+
+은행이름, 계좌번호 → 사원_id → 사원이름
+
+### transitive FD 제거
+
+| 은행 이름 | 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id |
+| --- | --- | --- | --- | --- | --- |
+| 우리 | 010-9231-1121 | a11 | BRONZE | 0.1 | e1 |
+| 우리 | 102-992-180125 | a12 | SILVER | 0.2 | e1 |
+| 국민 | 010-9231-1121 | a13 | LOYAL | 0.7 | e1 |
+| 국민 | 010-1221-1732 | a21 | LOYAL | 1 | e2 |
+
+| 사원_id | 사원이름 |
+| --- | --- |
+| e1 | Kim |
+| e2 | Park |
+
+## BCNF
+
+> 모든 유효한 non-trivial FD는 X가 super key 여야 한다
+> 
+
+### non-trivial FD 찾아 super key 확인
+
+국민 계좌등급 : STAR → LOYAL
+
+우리 계좌등급 : BRONZE → SILVER
+
+계좌등급으로 은행을 식별 = non-trivial DF
+
+하지만 계좌번호는 super key가 아니다.
+
+### 테이블 분리
+
+| 계좌번호 | 계좌_id | 계좌 등급 | 입금 비율 | 사원_id |
+| --- | --- | --- | --- | --- |
+| 010-9231-1121 | a11 | BRONZE | 0.1 | e1 |
+| 102-992-180125 | a12 | SILVER | 0.2 | e1 |
+| 010-9231-1121 | a13 | LOYAL | 0.7 | e1 |
+| 010-1221-1732 | a21 | LOYAL | 1 | e2 |
+
+| 계좌 등급 | 은행 이름 |
+| --- | --- |
+| BRONZE | 우리 |
+| SILVER | 우리 |
+| STAR | 국민 |
+| LOYAL | 국민 |
